@@ -1,4 +1,6 @@
 import random
+import os
+import re
 from random import randint
 import pandas as pd
 import seaborn as sns
@@ -14,12 +16,9 @@ import scipy.stats
 from textblob import TextBlob
 import math
 # Further Analysis
-import re
 from nltk.corpus import stopwords
-import os
 
 from os import path
-import os
 from PIL import Image
 
 from wordcloud import WordCloud, STOPWORDS
@@ -31,6 +30,11 @@ from xgboost import XGBClassifier
 from sklearn import metrics
 from sklearn.linear_model import LinearRegression
 
+import yfinance as yf
+from statistics import mean 
+from statistics import fmean 
+import statistics
+
 #%matplotlib inline
 
 # DATA :
@@ -39,6 +43,25 @@ tesla_data = pd.read_csv(
 
 acv = pd.read_csv(
     r"C:/Users/bianc/OneDrive/Documents/CTI/NB/books - pdfs/js/NFLX.csv")
+
+gm_data = pd.read_csv(
+    r"C:/Users/bianc/OneDrive/Documents/CTI/NB/books - pdfs/js/RACE.csv")
+
+
+# how close the closing price and adj_close are
+sns.relplot(x='close', y=('adj_close'), data=tesla_data)
+
+## BETA: check for volatility using 
+symbols = ['TSLA', 'RACE']
+data = yf.download(symbols, '2022-12-06')['Adj Close']
+price_change = data.pct_change()
+df_dd = price_change.drop(price_change.index[0])
+x = np.array(df_dd['TSLA']).reshape((-1,1))
+y = np.array(df_dd['RACE'])
+model = LinearRegression().fit(x, y)
+print('Beta = ', model.coef_)
+
+
 
 df_tesla = tesla_data
 df_tesla['close'].plot(figsize=(10, 7))
@@ -59,22 +82,25 @@ print(diffBAdjandClose1)
 
 
 print("first 5 rows: ")
-print( tesla_data.head())
+print( tesla_data.tail())
 print("Working with the following types of data:")
 print(tesla_data.describe())
 print(tesla_data.dtypes)
 
+print("Volume:")
+tesla_data['volume'].plot()
+plt.show()
 
 # http://localhost:8888/notebooks/Downloads/IMBA/4.%20Simple_linear_regression/regression-modeling-simple-linear-regression.ipynb --> idea
-df_tesla['meanOfClose'] = df_tesla['close'].mean()
+df_tesla['meanOfClose'] = df_tesla['adj_close'].mean()
 ## Calculate SSE
-sse = np.sum(np.square(df_tesla['close'] - df_tesla['meanOfClose']))
+sse = np.sum(np.square(df_tesla['adj_close'] - df_tesla['meanOfClose']))
 print(sse)
 
-mse = np.mean(np.square(df_tesla['close'] - df_tesla['meanOfClose']))
+mse = np.mean(np.square(df_tesla['adj_close'] - df_tesla['meanOfClose']))
 print(mse)
 
-rmse = (np.mean(np.square(df_tesla['close'] - df_tesla['meanOfClose']))) ** 0.5
+rmse = (np.mean(np.square(df_tesla['adj_close'] - df_tesla['meanOfClose']))) ** 0.5
 print(rmse)
 #minimizing the rmse
 y_bar = df_tesla['close'].mean()
@@ -104,6 +130,7 @@ ax.plot(df_tesla['open'], df_tesla['Linear_meanOfClose'], color='r');
 
 df_tesla_mean = df_tesla['open'].mean()
 print(df_tesla_mean)
+
 df_tesla_maxO = df_tesla['open'].max()
 print("max of open: ", df_tesla_maxO)
 df_tesla_minO = df_tesla['open'].min()
@@ -114,7 +141,6 @@ df_tesla_maxC = df_tesla['close'].max()
 print("max of close: ", df_tesla_maxC)    
 df_tesla_minC = df_tesla['close'].min()
 print("min of close: ", df_tesla_minC)
-
 
 
 df_tesla_maxH = df_tesla['high'].max()
@@ -128,13 +154,11 @@ print("max of low: ", df_tesla_maxL)
 df_tesla_minL = df_tesla['low'].min()
 print("min of low: ", df_tesla_minL)
 
+header =['Max of open', 'Min of open', 'Max of close', 'Min of close', 'Max of high', 'Min of high', 'Max of low', 'Min of low']
+data = [df_tesla_maxO, df_tesla_minO,  df_tesla_maxC,df_tesla_minC, df_tesla_maxH, df_tesla_minH , df_tesla_maxL, df_tesla_minL ]
+print(data)
 
 
-sns.relplot(x='date', y='adj_close', data=tesla_data)
-
-five_days = tesla_data.head()
-print("closing price for 5 day")
-sns.relplot(x=five_days['date'], y=five_days['close'], data=tesla_data)
 
 
 # return of stock
@@ -146,25 +170,38 @@ fig = plt.figure()
 stock_return.plot()
 plt.show()
 
+# return of stock per date
+sns.relplot(x='date', y=stock_return, data=tesla_data)
+
+sns.relplot(x='date', y='adj_close', data=tesla_data)
+
+ten_days = tesla_data.head(10)
+print("adjusted closing price for 10 days")
+sns.relplot(x= ten_days['adj_close']  , y=ten_days['date'], data=tesla_data, hue=tesla_data['volume'])
+
+
+ten_dayst = tesla_data.tail(10)
+print("closing price for 10 days")
+sns.relplot(x=ten_dayst['adj_close'], y= ten_dayst['date'], data=tesla_data, hue=tesla_data['volume'])
+
 # study the Volume ( and return of stocks )
 # return of stocks per volume
 sns.relplot(x= stock_return, y='volume' , data=tesla_data)
 figs = plt.figure()
-tesla_data['volume'].plot()
-plt.show()
+
+
 
 
 
 # volatility
-tesla_data['daily_returns'] = (tesla_data['close'].pct_change())*100
-
-daily_volatility = tesla_data['daily_returns'].std()
+tesla_data['daily_returns'] = (tesla_data['close'].pct_change())
+daily_volatility = (tesla_data['daily_returns'].std()) 
 print('Daily volatility: ', '{:.2f}%'.format(daily_volatility))
 
-monthly_volatility = math.sqrt(21) * daily_volatility
+monthly_volatility = (math.sqrt(21) * daily_volatility)
 print('Monthly volatility:', '{:.2f}%'.format(monthly_volatility))
 
-annual_volatility = math.sqrt(252) * daily_volatility
+annual_volatility = (math.sqrt(252) * daily_volatility) 
 print('Annual volatility:', '{:.2f}%'.format(annual_volatility))
 
 # plotting the volatility
@@ -176,22 +213,21 @@ plot_data_v = pd.DataFrame({
 )
 plot_data_v.plot(kind="bar")
 plt.title("Volatily of Tesla")
-plt.xlabel("Per stock")
+plt.xlabel("")
 plt.ylabel("Total")
 
-plot_data_v['mean_annualy'] = plot_data_v['annualy'].mean()
-plot_data_v.boxplot()
 
 
-sns.relplot(x='close', y=('adj_close'), data=tesla_data)
+
+
 
 
 
 #Our goal will be to predict the future price. Using a SLR model.
 
-sns.lmplot(x='high', y='low', data=tesla_data)
+sns.lmplot(x='low', y='open', data=tesla_data)
 plt.show()
-sns.lmplot(x='volume', y='adj_close', data=tesla_data)
+sns.lmplot(x='volume', y='open', data=tesla_data)
 plt.show()
 #sns.lmplot(x='date', y=stock_return , data=tesla_data)
 #plt.show()
@@ -274,16 +310,16 @@ plt.show()
 tesla_data['new_open'] = (tesla_data['open'] > 350).astype(int)
 tesla_data['new_open'].value_counts() 
 
-X = tesla_data[['open','close','adj_close','new_open']].values
+x = tesla_data[['open','close','adj_close','new_open']].values
 y = tesla_data['volume'].values
 
 model = LinearRegression()
-model.fit(X, y)
+model.fit(x, y)
 
-y_pred = model.predict(X)
+y_pred = model.predict(x)
 
 tesla_data['prediction'] = y_pred
-sns.lmplot(x='volume', y='prediction', data=tesla_data, hue='new_open',)
+sns.lmplot(x='volume', y='prediction', data=tesla_data, hue='new_open')
 
 #residuals
 
@@ -395,7 +431,7 @@ plt.show()
 
 
 sentiment = TextBlob(cleantext)
-print("Sentiment Score: ", sentiment.sentiment.polarity)  # Result = 1.0
+print("Score: ", sentiment.sentiment.polarity)  # Result = 1.0
 
 """
 A ratio in sentiment analysis is a score that looks at how negative sentiment comments and positive sentiment comments are represented. Generally, 
